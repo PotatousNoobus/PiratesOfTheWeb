@@ -12,8 +12,16 @@ class Scraping(commands.Cog):
 
         
 
-    #@app_commands.command()
-    #async def stream(self, ctx, *, movie_name: str):
+    @app_commands.command()
+    async def stream(self, interaction: discord.Interaction, movie_name: str):
+        await interaction.response.defer()
+        safe_name = urllib.parse.quote_plus(movie_name)
+        
+        # Build the exact link using the westream.to URL structure
+        base_url = "https://westream.to/search?keyword=" 
+        final_link = base_url + safe_name
+        
+        await interaction.followup.send(f"🍿 Here is the stream link for **{movie_name.title()}**:\n{final_link}")
 
         
 
