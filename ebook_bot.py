@@ -25,8 +25,12 @@ async def ebook(ctx, *, book_name: str):
     safe_name = urllib.parse.quote_plus(book_name)
     search_url = f"https://oceanofpdf.com/?s={safe_name}"
     
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    }
+
     try:
-        response = requests.get(search_url, timeout=15)
+        response = requests.get(search_url, headers=headers, timeout=15)
         response.raise_for_status()  # Raise an exception for bad status codes
         
         soup = BeautifulSoup(response.content, 'html.parser')
