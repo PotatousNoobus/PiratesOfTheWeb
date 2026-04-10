@@ -25,13 +25,20 @@ async def ebook(ctx, *, book_name: str):
     safe_name = urllib.parse.quote_plus(book_name)
     search_url = f"https://oceanofpdf.com/?s={safe_name}"
     
+    # --- FIX STARTS HERE ---
+    # We add a User-Agent header to mimic a real browser request
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    # --- FIX ENDS HERE ---
+
     try:
-        response = requests.get(search_url, timeout=15)
+        # Pass the headers with the request
+        response = requests.get(search_url, headers=headers, timeout=15)
         response.raise_for_status()  # Raise an exception for bad status codes
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Find all the article entries for books
         results = soup.find_all('article', class_='post-item', limit=5)
         
         if not results:
@@ -50,6 +57,8 @@ async def ebook(ctx, *, book_name: str):
         final_message = "\n".join(message_lines)
         await ctx.send(final_message)
         
+    except requests.exceptions.HTTPError as e:
+        await ctx.send(f"⚠️ A web error occurred: {e}. The site might be blocking us.")
     except requests.exceptions.RequestException as e:
         await ctx.send(f"⚠️ An error occurred while trying to connect to OceanOfPDF: {e}")
     except Exception as e:
@@ -58,10 +67,7 @@ async def ebook(ctx, *, book_name: str):
 @bot.command()
 async def stream(ctx, *, movie_name: str):
     
-    # quote_plus automatically turns spaces into '+' and handles special characters safely
     safe_name = urllib.parse.quote_plus(movie_name)
-    
-    # Build the exact link using the westream.to URL structure
     base_url = "https://westream.to/search?keyword=" 
     final_link = base_url + safe_name
     
@@ -73,11 +79,7 @@ async def top10(ctx, *, movie_name: str):
     
     await ctx.send(f"🔍 Firing up the invisible browser to search for **{movie_name.title()}**...")
     
-    # 👇 1. PASTE YOUR EXACT SEARCH PAGE URL HERE 👇
-    # (The URL of the page that has the empty search box we found)
     search_page_url = "https://thepiratebay.org/index.html" 
-    
-    # 2. The exact selectors we hunted down!
     search_bar_selector = "input[name='q']"
     results_selector = "div.browse section.col-center ol#torrents li.list-entry span.list-item.item-name.item-title a"
     
@@ -86,37 +88,29 @@ async def top10(ctx, *, movie_name: str):
         page = await browser.new_page()
         
         try:
-            # Step 1: Go to the page with the search box
             await page.goto(search_page_url, wait_until="domcontentloaded", timeout=30000)
-            
-            # Step 2: Wait for the search box, click it, type the movie, and hit Enter
             await page.wait_for_selector(search_bar_selector, timeout=10000)
             await page.fill(search_bar_selector, movie_name)
             await page.keyboard.press("Enter")
             
-            # Step 3: Wait for the dynamic list to actually load on the screen
             try:
                 await page.wait_for_selector(results_selector, timeout=15000)
             except:
-                # 👇 WE ADDED THE SCREENSHOT DEBUGGER BACK IN 👇
                 await page.screenshot(path="debug_after_enter.png", full_page=True)
                 await ctx.send(f"❌ I typed '{movie_name}' and hit Enter, but the list never appeared. I saved a `debug_after_enter.png` so we can see what happened!")
                 await browser.close()
                 return
                 
-            # Step 4: Count the results and limit to 10
             total_elements = await page.locator(results_selector).count()
             limit = min(10, total_elements)
             
             message_lines = [f"**Top {limit} results for '{movie_name.title()}':**\n"]
             
-            # Step 5: Loop through them and pull the text and href attributes
             for i in range(limit):
                 element = page.locator(results_selector).nth(i)
                 title = await element.inner_text()
                 link = await element.get_attribute('href')
                 
-                # Fix relative links if needed
                 if link and link.startswith('/'):
                     parsed_uri = urllib.parse.urlparse(search_page_url)
                     base = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
