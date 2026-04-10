@@ -18,28 +18,28 @@ async def on_ready():
 
 @bot.command()
 async def ebook(ctx, *, book_name: str):
-    """Searches for an eBook on oceanofpdf.com and returns the top 5 results."""
+    """Searches for an eBook on pdfdrive.com and returns the top 5 results."""
     
-    await ctx.send(f"📚 Searching for **{book_name.title()}** on OceanOfPDF...")
+    await ctx.send(f"📚 Searching for **{book_name.title()}** on PDFDrive...")
     
     safe_name = urllib.parse.quote_plus(book_name)
-    search_url = f"https://oceanofpdf.com/?s={safe_name}"
+    # NEW: Switched to pdfdrive.com
+    search_url = f"https://www.pdfdrive.com/search?q={safe_name}"
     
-    # --- FIX STARTS HERE ---
-    # We add a User-Agent header to mimic a real browser request
+    # Headers to mimic a real browser request
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    # --- FIX ENDS HERE ---
-
+    
     try:
-        # Pass the headers with the request
+        # Make the request with the new URL and headers
         response = requests.get(search_url, headers=headers, timeout=15)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        response.raise_for_status()
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        results = soup.find_all('article', class_='post-item', limit=5)
+        # NEW: Updated selectors for pdfdrive.com's structure
+        results = soup.find_all('div', class_='file-right', limit=5)
         
         if not results:
             await ctx.send(f"Sorry, I couldn't find any results for **{book_name.title()}**.")
@@ -48,21 +48,24 @@ async def ebook(ctx, *, book_name: str):
         message_lines = [f"**Top 5 results for '{book_name.title()}':**\n"]
         
         for i, result in enumerate(results):
-            title_element = result.find('h2', class_='post-title').find('a')
-            title = title_element.get_text(strip=True)
-            link = title_element['href']
+            # Find the h2 tag which contains the title and link
+            title_element = result.find('h2').find('a')
             
-            message_lines.append(f"{i+1}. **{title}**\n🔗 <{link}>\n")
+            if title_element:
+                title = title_element.get_text(strip=True)
+                # Construct the full URL since the link is relative
+                link = "https://www.pdfdrive.com" + title_element['href']
+                
+                message_lines.append(f"{i+1}. **{title}**\n🔗 <{link}>\n")
             
         final_message = "\n".join(message_lines)
         await ctx.send(final_message)
         
-    except requests.exceptions.HTTPError as e:
-        await ctx.send(f"⚠️ A web error occurred: {e}. The site might be blocking us.")
     except requests.exceptions.RequestException as e:
-        await ctx.send(f"⚠️ An error occurred while trying to connect to OceanOfPDF: {e}")
+        await ctx.send(f"⚠️ An error occurred while trying to connect to PDFDrive: {e}")
     except Exception as e:
         await ctx.send(f"⚠️ An unexpected error occurred: {e}")
+
 
 @bot.command()
 async def stream(ctx, *, movie_name: str):
