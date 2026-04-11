@@ -299,7 +299,6 @@ class Scraping(commands.Cog):
                 await browser.close()
 
 
-<<<<<<< HEAD
     @app_commands.command(name="game_direct", description="Directly grabs the download link for a game.")
     async def game_direct(self, interaction: discord.Interaction, game_name: str): 
         # 1. Defer immediately so Discord doesn't timeout
@@ -375,7 +374,5 @@ class Scraping(commands.Cog):
             await interaction.followup.send(f"Sorry, I couldn't find a link for '{game_name}'. Check the spelling or try another game!")
 
 
-=======
->>>>>>> f3f8be658b6c655360bd629544c771bf193f5a4d
 async def setup(bot):
     await bot.add_cog(Scraping(bot))
