@@ -7,13 +7,14 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 import os
 from google import genai
+import aiohttp
 
 class GameSelectionView(discord.ui.View):
     def __init__(self, game_options):
         super().__init__(timeout=60) 
         
         for game in game_options[:5]: 
-            button = discord.ui.Button(label=game.strip()[:80], style=discord.ButtonStyle.primary)
+            button = discord.ui.Button(label=game.strip()[:80], style=discord.ButtonStyle.success)
             button.callback = self.make_callback(game.strip())
             self.add_item(button)
 
@@ -59,9 +60,16 @@ class GameSelectionView(discord.ui.View):
                             
                             if target_link_tag:
                                 final_download_link = target_link_tag.get('href')
+                                link_view = discord.ui.View()
+                                link_button = discord.ui.Button(
+                                    label=f"Download", 
+                                    url=final_download_link, 
+                                    style=discord.ButtonStyle.link # This makes it a clickable link!
+                                )
+                                link_view.add_item(link_button)
                                 await interaction.followup.send(
-                                    f"**Top result for '{selected_game}':**\n"
-                                    f"🎮 **{title}**\n🔗 {target_host}: <{final_download_link}>"
+                                    content=f"**Top result for '{selected_game}':**\n🎮 **{title}**",
+                                    view=link_view
                                 )
                                 return                    
                                 
@@ -75,7 +83,23 @@ class GameSelectionView(discord.ui.View):
 
         return button_callback
 
-
+async def get_game_suggestions(query: str):
+    """Fetches instant game names from Steam to use for our buttons."""
+    safe_query = urllib.parse.quote(query)
+    url = f"https://store.steampowered.com/api/storesearch/?term={safe_query}&l=english&cc=US"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get('total', 0) > 0:
+                        # Extract names, remove duplicates, keep top 5
+                        games = [item['name'] for item in data['items']]
+                        return list(dict.fromkeys(games))[:5]
+    except Exception as e:
+        print(f"API Error: {e}")
+    return []
 
 class Scraping(commands.Cog):
     def __init__(self, bot):
@@ -200,12 +224,6 @@ class Scraping(commands.Cog):
         except Exception as e:
             await interaction.followup.send(f"⚠️ The AI encountered an error generating options: {e}")
 
-    
-
-
-    
-
-
 
     @app_commands.command()
     async def ebook(self,interaction: discord.Interaction, book_name: str):
@@ -300,79 +318,117 @@ class Scraping(commands.Cog):
 
 
     @app_commands.command(name="game_direct", description="Directly grabs the download link for a game.")
-    async def game_direct(self, interaction: discord.Interaction, game_name: str): 
-        # 1. Defer immediately so Discord doesn't timeout
+    async def game_direct(self, interaction: discord.Interaction, game_name: str):
         await interaction.response.defer()
         
-        # The '*' catches names with spaces
-        await interaction.followup.send(f"Searching for **{game_name}**... 🔎")
+        # 1. Ping Steam for instant, perfectly spelled suggestions
+        suggested_names = await get_game_suggestions(game_name)
         
-        TARGET_WEBSITE = 'https://steamrip.com'
-        final_download_link = None # We will store the scraped link here
-
-        # 2. Start Playwright directly inside the command
-        try:
-            async with async_playwright() as p:
-                # HACKATHON TIP: Keep headless=False while testing so you can watch it!
-                # (Remember to change this to headless=True when you host it on a server)
-                browser = await p.chromium.launch(headless=True) 
-                page = await browser.new_page()
-                
-                try:
-                    # Format the game name for a URL (e.g., "GTA San Andreas" -> "GTA+San+Andreas")
-                    search_query = game_name.replace(" ", "+")
-                    search_url = f"{TARGET_WEBSITE}/?s={search_query}" 
-                    
-                    # Teleport directly to the search results page
-                    await page.goto(search_url, timeout=15000)
-                    
-                    # Wait for the specific game banner to appear
-                    await page.wait_for_selector('a.all-over-thumb-link', timeout=10000)
-
-                    # Extract the href attribute from the very first result
-                    partial_link = await page.locator('a.all-over-thumb-link').first.get_attribute('href')
-                    
-                    # Construct the full URL for the game page
-                    clean_partial = partial_link.lstrip('/')
-                    full_game_url = f"{TARGET_WEBSITE}/{clean_partial}"
-                    print(f"Bot found the game page: {full_game_url}")
-
-                    # Teleport directly to the game page
-                    await page.goto(full_game_url, timeout=15000)
-
-                    # Wait for the download button to load on the game page
-                    button_selector = 'a.shortc-button'
-                    await page.wait_for_selector(button_selector, timeout=15000)
-
-                    # Extract the raw link
-                    raw_link = await page.locator(button_selector).first.get_attribute('href')
-
-                    # Fix the protocol-relative URL if it starts with "//"
-                    if raw_link and raw_link.startswith('//'):
-                        final_download_link = f"https:{raw_link}"
-                    else:
-                        final_download_link = raw_link
-
-                    print(f"Success! Final link is: {final_download_link}")
-
-                except Exception as e:
-                    print(f"Scraping failed for {game_name}: {e}")
-                    # final_download_link remains None, triggering the error message below
-
-                finally:
-                    await browser.close()
-                    
-        except Exception as e:
-            print(f"Playwright crashed: {e}")
-
-        # 3. Send the final result back to Discord
-        if final_download_link:
-            # Safety net: ensure it's an absolute link
-            full_url = f"{TARGET_WEBSITE}{final_download_link}" if final_download_link.startswith('/') else final_download_link
-            await interaction.followup.send(f"Found it! Here you go: {full_url}")
+        if suggested_names:
+            # 2. Show the buttons
+            view = GameSelectionView(suggested_names)
+            
+            embed = discord.Embed(
+                title=f"🔎 Found {len(suggested_names)} matches for '{game_name}'",
+                description="Select the exact version you want the bot to scrape for:",
+                color=discord.Color.green()
+            )
+            await interaction.followup.send(embed=embed, view=view)
         else:
-            await interaction.followup.send(f"Sorry, I couldn't find a link for '{game_name}'. Check the spelling or try another game!")
+            await interaction.followup.send(f"❌ Steam couldn't find any games matching **{game_name}**.")
 
+async def fetch_game_links(url: str, game_name: str):
+    """The core Playwright scraper that grabs the final link."""
+    async with async_playwright() as p:
+        # Remember to change headless=True when you are done testing!
+        browser = await p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"]) 
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        page = await context.new_page()
+        
+        try:
+            search_query = game_name.replace(" ", "+")
+            search_url = f"{url}/?s={search_query}" 
+            
+            await page.goto(search_url, timeout=15000)
+            await page.wait_for_selector('a.all-over-thumb-link', timeout=10000)
+
+            partial_link = await page.locator('a.all-over-thumb-link').first.get_attribute('href')
+            
+            clean_partial = partial_link.lstrip('/')
+            full_game_url = f"{url}/{clean_partial}"
+            
+            await page.goto(full_game_url, timeout=15000)
+
+            button_selector = 'a.shortc-button'
+            await page.wait_for_selector(button_selector, timeout=15000)
+
+            raw_link = await page.locator(button_selector).first.get_attribute('href')
+
+            # --- THE BULLETPROOF URL FIX IS NOW ACTIVE ---
+            if raw_link:
+                if raw_link.startswith('//'):
+                    return f"https:{raw_link}"
+                elif raw_link.startswith('/'):
+                    base_url = url.rstrip('/')
+                    return f"{base_url}{raw_link}"
+                elif not raw_link.startswith('http'):
+                    return f"https://{raw_link}"
+                else:
+                    return raw_link
+            
+            return None # Fallback if raw_link is empty
+
+        except Exception as e:
+            print(f"Scraping failed for {game_name}: {e}")
+            return None
+        finally:
+            await browser.close()
+
+class GameSelectionView(discord.ui.View):
+    def __init__(self, game_titles: list):
+        super().__init__(timeout=120) 
+        
+        for title in game_titles: 
+            button = discord.ui.Button(
+                label=title[:80], # Max 80 chars
+                style=discord.ButtonStyle.success, 
+                custom_id=title[:100] # Store the title to feed to Playwright
+            )
+            button.callback = self.button_clicked
+            self.add_item(button)
+
+    async def button_clicked(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        
+        # 1. Grab the exact title the user selected
+        selected_game = interaction.data["custom_id"]
+        
+        # Disable buttons so they don't click twice
+        for item in self.children:
+            item.disabled = True
+        await interaction.edit_original_response(view=self)
+
+        await interaction.followup.send(f"🚀 Firing up the invisible browser to find **{selected_game}** on the download site...")
+
+        # 2. RUN PLAYWRIGHT ON YOUR TARGET SITE
+        TARGET_WEBSITE = 'https://steamrip.com' # Replace with your actual site
+        final_link = await fetch_game_links(TARGET_WEBSITE, selected_game)
+        
+        # 3. Deliver the final download link
+        if final_link:
+            embed = discord.Embed(
+                title=f"🎮 {selected_game}",
+                description="Link successfully extracted from the website!",
+                color=discord.Color.green()
+            )
+            dl_view = discord.ui.View()
+            dl_view.add_item(discord.ui.Button(label="⬇️ Download Now", url=final_link, style=discord.ButtonStyle.link))
+            
+            await interaction.followup.send(embed=embed, view=dl_view)
+        else:
+            await interaction.followup.send(f"❌ Sorry, the scraper couldn't find a final link for **{selected_game}**.")
 
 async def setup(bot):
     await bot.add_cog(Scraping(bot))
