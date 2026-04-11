@@ -162,10 +162,10 @@ class Scraping(commands.Cog):
 
     @app_commands.command()
     async def ebook(self, interaction:discord.Interaction, book_name: str):
-        """Searches for a book on Anna's Archive and returns up to 3 slow download links."""
+        
         await interaction.response.defer()
         
-        await interaction.followup.send(f"📚 Searching for **{book_name.title()}** on Anna's Archive...")
+        await interaction.followup.send(f"📚 Searching for **{book_name.title()}** ...")
         
         safe_name = urllib.parse.quote_plus(book_name)
         base_url = "https://annas-archive.gd"

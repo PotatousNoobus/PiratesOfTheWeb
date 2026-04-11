@@ -18,6 +18,7 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         # Load the scraping commands from the cogs folder
         await self.load_extension('cogs.scraper')
+        await self.load_extension('cogs.chatbot')
         # You can load more cogs here later!
         await self.tree.sync()
 
