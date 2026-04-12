@@ -400,7 +400,7 @@ class Scraping(commands.Cog):
             await interaction.followup.send(f"⚠️ The AI encountered an error generating options: {e}")
 
 
-    @app_commands.command()
+    @app_commands.command(name="ebook", description="One stop destination for all the reading material!")
     async def ebook(self,interaction: discord.Interaction, book_name: str):
         await interaction.response.defer()
         await interaction.followup.send(f"📚 Searching for **{book_name.title()}** ...")
