@@ -550,40 +550,55 @@ async def fetch_game_links(url: str, game_name: str):
             await browser.close()
 
 class GameSelectionView(discord.ui.View):
-    def __init__(self, game_titles: list):
+    def __init__(self, game_results: list, base_url: str):
         super().__init__(timeout=120) 
+        self.base_url = base_url
         
-        for title in game_titles: 
+        for game in game_results: 
             button = discord.ui.Button(
-                label=title[:80], # Max 80 chars
-                style=discord.ButtonStyle.success, 
-                custom_id=title[:100] # Store the title to feed to Playwright
+                label=game["title"][:80], 
+                style=discord.ButtonStyle.primary, 
+                # We store the relative URL path inside the button!
+                custom_id=game["path"][:100] 
             )
             button.callback = self.button_clicked
             self.add_item(button)
 
     async def button_clicked(self, interaction: discord.Interaction):
+        # 1. Defer immediately
         await interaction.response.defer()
         
-        # 1. Grab the exact title the user selected
-        selected_game = interaction.data["custom_id"]
+        # Grab the URL path hidden inside the button
+        selected_path = interaction.data["custom_id"]
+        selected_title = "the game" # Fallback title
         
-        # Disable buttons so they don't click twice
+        # 2. Update the buttons visually!
         for item in self.children:
-            item.disabled = True
+            # Check if this specific button is the one the user clicked
+            if item.custom_id == selected_path:
+                # Save the title so we can use it in our message below
+                selected_title = item.label 
+                
+                # Change the text and turn the button Green (success)
+                item.label = f"✅ {item.label}"
+                item.style = discord.ButtonStyle.success 
+                
+            # Disable all buttons so no one double-clicks
+            item.disabled = True 
+            
+        # Push the button update to Discord
         await interaction.edit_original_response(view=self)
 
-        await interaction.followup.send(f"🚀 Firing up the invisible browser to find **{selected_game}** on the download site...")
+        # Tell the user we are grabbing that specific game
+        await interaction.followup.send(f"🚀 Teleporting to the game page for **{selected_title}**...")
 
-        # 2. RUN PLAYWRIGHT ON YOUR TARGET SITE
-        TARGET_WEBSITE = 'https://steamrip.com' # Replace with your actual site
-        final_link = await fetch_game_links(TARGET_WEBSITE, selected_game)
+        # 3. Run the second phase of the scraper!
+        final_link = await scrape_direct_download(self.base_url, selected_path)
         
-        # 3. Deliver the final download link
         if final_link:
             embed = discord.Embed(
-                title=f"🎮 {selected_game}",
-                description="Link successfully extracted from the website!",
+                title=f"✅ Link Extracted: {selected_title}",
+                description="Your direct download is ready.",
                 color=discord.Color.green()
             )
             dl_view = discord.ui.View()
@@ -591,7 +606,12 @@ class GameSelectionView(discord.ui.View):
             
             await interaction.followup.send(embed=embed, view=dl_view)
         else:
-            await interaction.followup.send(f"❌ Sorry, the scraper couldn't find a final link for **{selected_game}**.")
+            embed = discord.Embed(
+                title = "❗Error",
+                description="Sorry, the scraper couldn't extract the link!",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Scraping(bot))
