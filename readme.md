@@ -38,7 +38,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
       <td>Scrapes trusted sources for high-quality magnet links.</td>
     </tr>
     <tr>
-      <td rowspan="2" align="center"> popcorn <br><b>Cinema</b></td>
+      <td rowspan="2" align="center">🍿<br><b>Cinema</b></td>
       <td><code>/movie_torrent</code></td>
       <td>Simulates physical typing/searching on torrent databases.</td>
     </tr>
@@ -53,7 +53,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
     </tr>
     <tr>
       <td><code>/detect</code></td>
-      <td>Computer Vision to identify posters or covers from uploads.</td>
+      <td>Gemini API to identify posters or covers from uploads.</td>
     </tr>
     <tr>
       <td><code>/book_recommend</code></td>
