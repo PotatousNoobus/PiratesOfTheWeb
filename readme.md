@@ -83,7 +83,7 @@ This bot is built for speed, resilience, and automation, utilizing asynchronous 
 * **AI Integration:** `google-genai` SDK powered by Gemini 1.5 Flash for natural language processing, entity extraction, and recommendation generation.
 * **Caching Layer:** *MongoDB* to store scraped results and reduce latency on frequent queries.
 
-**---**
+---
 
 ## 🚀 Deployment (Recommended)
 
