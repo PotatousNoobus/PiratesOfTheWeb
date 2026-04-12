@@ -16,6 +16,10 @@ This version has been specially modified for the **Sin City: Las Vegas Hackathon
 * **💬 AI Chat**: Have a full conversation with an AI right within your Discord server.
 * **🐳 Dockerized**: Built for easy deployment and management with Docker.
 
+## 🤖 Bot Commands
+
+All commands are slash commands (e.g., `/movie`, not `!movie`).
+
 <table>
   <thead>
     <tr>
@@ -68,6 +72,7 @@ This version has been specially modified for the **Sin City: Las Vegas Hackathon
   </tbody>
 </table>
 
+Enjoy your adventures on the high seas! 🌊
 ---
 
 ## 🚀 Deployment (Recommended)
@@ -303,34 +308,3 @@ If you prefer to run the bot on your local machine for testing or development, f
 
 
 ---
-
-
-
-## 🤖 Bot Commands
-
-
-
-All commands are slash commands (e.g., `/movie`, not `!movie`).
-
-
-
-| Command | Arguments | Description |
-
-| :--- | :--- | :--- |
-
-| `/movie` | `<name>` | 🎬 Searches for movie torrents and provides the top results. |
-
-| `/game` | `<name>` | 🎮 Searches for game torrents from trusted sources like FitGirl. |
-
-| `/ebook` | `<name>` | 📚 Finds the top result for an eBook on Anna's Archive. |
-
-| `/chat` | `<message>` | 💬 Starts a conversation with the integrated Gemini AI. |
-
-| `/recommend`| `<genre>` | 🌟 Asks the AI to recommend 5 books from a specific genre. |
-
-
-
-Enjoy your adventures on the high seas! 🌊```env
-DISCORD_TOKEN=YOUR_SECRET_BOT_TOKEN_HERE
-GEMINI_API_KEY=YOUR_GOOGLE_AI_API_KEY_HERE
-GOOGLE_BOOKS_API_KEY=YOUR_GOOGLE_BOOKS_API_KEY_HERE
