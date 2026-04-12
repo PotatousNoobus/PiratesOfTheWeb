@@ -80,7 +80,7 @@ This bot is built for speed, resilience, and automation, utilizing asynchronous 
 * **Core Framework:** `discord.py` (Python 3.10+) utilizing modern Slash Commands and interactive UI Views.
 * **Scraping Engine:** `Playwright` (Async). Used to spawn headless and headed Chromium instances to physically interact with heavily obfuscated DOMs and bypass Cloudflare DDoS protections.
 * **Web Parsing:** `BeautifulSoup4` and `aiohttp` for lightning-fast, concurrent static HTML extraction.
-* **AI Integration:** `google-genai` SDK powered by Gemini 1.5 Flash for natural language processing, entity extraction, and recommendation generation.
+* **AI Integration:** `google-genai` SDK powered by Gemini 2.5 Flash for natural language processing, entity extraction, and recommendation generation.
 * **Caching Layer:** *Redis* to store scraped results and reduce latency on frequent queries.
 
 ---
