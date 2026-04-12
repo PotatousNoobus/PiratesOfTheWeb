@@ -1,4 +1,3 @@
-
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -10,9 +9,7 @@ import asyncio
 import aiohttp
 import re
 
-# --- 1. THE UI BUTTONS ---
 class BookActionView(discord.ui.View):
-    """Handles buttons specifically for books identified via image."""
     def __init__(self, book_name, cog):
         super().__init__(timeout=180)
         self.book_name = book_name
@@ -28,23 +25,15 @@ class BookActionView(discord.ui.View):
         await interaction.response.defer()
         await self.cog.worker_recommend(interaction, self.book_name)
 
-# --- 2. THE CHATBOT COG ---
 class AIChat(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        # Gemini setup
         api_key = os.getenv("GEMINI_API_KEY")
-        self.client = genai.Client(api_key=api_key) if api_key else None
-        
-        # Google Books setup
+        self.client = genai.Client(api_key=api_key) if api_key else None        
         self.books_api_key = os.getenv("GOOGLE_BOOKS_API_KEY")
 
-    # --- HELPER TO CREATE ERROR EMBEDS ---
     def create_error_embed(self, message: str) -> discord.Embed:
-        # Changed to yellow to match the uniform theme
         return discord.Embed(title="⚠️ Error", description=message, color=discord.Color.yellow())
-
-    # --- CORE WORKER FUNCTIONS ---
 
     async def worker_review(self, interaction, book_name):
         """Fetches trustworthy data from Google Books API and formats as Embed."""
@@ -72,10 +61,10 @@ class AIChat(commands.Cog):
             description = book_info.get("description", "No official summary available.")
             link = book_info.get("infoLink", "")
 
-
+           
             clean_desc = re.sub('<[^<]+?>', '', description)
             
-           
+            
             embed = discord.Embed(
                 title=f"📖 Official Data: {title}", 
                 description=f"**Summary:**\n> {clean_desc[:4000]}", 
@@ -92,7 +81,6 @@ class AIChat(commands.Cog):
             await interaction.followup.send(embed=self.create_error_embed(f"Review Error: {str(e)[:100]}"))
 
     async def worker_recommend(self, interaction, genre_or_book):
-        """Generates 5 recommendations using Gemini as an Embed."""
         try:
             prompt = (
                 f"Recommend exactly 5 books based on: '{genre_or_book}'. "
@@ -111,34 +99,32 @@ class AIChat(commands.Cog):
         except Exception as e:
             await interaction.followup.send(embed=self.create_error_embed(f"Recommendation Error: {str(e)[:100]}"))
 
-    # --- SLASH COMMANDS ---
-
-    @app_commands.command(name="ask", description="Ask the AI a general question")
-    async def ask(self, interaction: discord.Interaction, question: str):
+    @app_commands.command(name="chat", description="Ask the AI a general question")
+    async def chat(self, interaction: discord.Interaction, question: str):
         await interaction.response.defer()
         try:
             response = await self.client.aio.models.generate_content(model='gemini-2.5-flash', contents=question)
             embed = discord.Embed(
                 title="🤖 AI Response",
                 description=response.text[:4096],
-                color=discord.Color.yellow()
+                color=discord.Color.blue()
             )
             await interaction.followup.send(embed=embed)
         except Exception as e:
             await interaction.followup.send(embed=self.create_error_embed(str(e)))
 
-    @app_commands.command(name="review", description="Get an official review from Google Books")
-    async def review(self, interaction: discord.Interaction, book_name: str):
+    @app_commands.command(name="book_review", description="Get an official review from Google Books")
+    async def book_review(self, interaction: discord.Interaction, book_name: str):
         await interaction.response.defer()
         await self.worker_review(interaction, book_name)
 
-    @app_commands.command(name="recommend", description="Get 5 book recommendations")
-    async def recommend(self, interaction: discord.Interaction, genre: str):
+    @app_commands.command(name="book_recommend", description="Get 5 book recommendations")
+    async def book_recommend(self, interaction: discord.Interaction, genre: str):
         await interaction.response.defer()
         await self.worker_recommend(interaction, genre)
 
-    @app_commands.command(name="image", description="Identify a book cover or movie poster")
-    async def image(self, interaction: discord.Interaction, file: discord.Attachment):
+    @app_commands.command(name="detect", description="Identify a book cover or movie poster")
+    async def detect(self, interaction: discord.Interaction, file: discord.Attachment):
         await interaction.response.defer()
 
         if not file.content_type.startswith("image/"):
