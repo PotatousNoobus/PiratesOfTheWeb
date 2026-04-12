@@ -4,9 +4,9 @@ Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty f
 
 ## 🌟 Features
 
-*   **🎬 Movie Downloads**: Get direct torrent search results for movies.
-*   **🎮 Game Downloads**: Find torrent links for your favorite games.
-*   **📚 eBook Scouring**: Instantly find and link eBooks from Anna's Archive.
+*   **🎬 Movie Downloads and Streaming**: Get direct torrent search results for movies or stream them online.
+*   **🎮 Game Downloads**: Find direct or torrent links for your favorite games.
+*   **📚 eBook/Magazine/Comic Scouring**: Instantly download almost every printed/digital reading material on the internet.
 *   **🤖 AI Book Recommendations**: Ask a powerful AI for book recommendations based on your favorite genre.
 *   **💬 AI Chat**: Have a full conversation with an AI right within your Discord server.
 *   **🐳 Dockerized**: Built for easy deployment and management with Docker.
