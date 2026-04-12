@@ -70,6 +70,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
 </table>
 
 Enjoy your adventures on the high seas! 🌊
+
 ---
 
 ## 🛠️ Tech Stack & Architecture
