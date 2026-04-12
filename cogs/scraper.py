@@ -8,6 +8,14 @@ from playwright.async_api import async_playwright
 import os
 from google import genai
 import aiohttp
+import json
+import redis.asyncio as redis
+from dotenv import load_dotenv
+
+
+load_dotenv()
+REDIS_URL = os.getenv('REDIS_URL')
+cache = redis.from_url(REDIS_URL, decode_responses=True)
 
 class SelectionView(discord.ui.View):
     def __init__(self, game_options):
@@ -23,96 +31,113 @@ class SelectionView(discord.ui.View):
             for child in self.children:
                 child.disabled = True
             
-            await interaction.response.edit_message(content=f"🔍 Excellent choice. Fetching the top links for **{selected_game}**...", view=self)
+            await interaction.response.edit_message(content=f"🔍 Fetching the top links for **{selected_game}**...", view=self)
 
-            safe_name = urllib.parse.quote(selected_game)
-            url = f"https://www.fitgirl-repacks.site/?s={safe_name}" 
+            cache_key = f"game_torrent:{selected_game.strip().lower()}"
+            found_links = []
 
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'} 
+
             try:
-                response = requests.get(url, headers=headers, timeout=15)
-                if response.status_code != 200:
-                    await interaction.followup.send("❌ Something went wrong trying to reach the main website.")
-                    return
+                cached_data = await cache.get(cache_key)
+                if cached_data:
+                    print(f"⚡ CACHE HIT for {cache_key}!")
+                    found_links = json.loads(cached_data)
+            except Exception as e:
+                print(f"⚠️ Cache read error: {e}")
 
-                soup = BeautifulSoup(response.text, 'html.parser')
+            
+            if not found_links:
+                print("🔍 CACHE MISS. Scraping website...")
+                safe_name = urllib.parse.quote(selected_game)
+                url = f"https://fitgirl-repacks.site/?s={safe_name}" 
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'} 
                 
-                results = soup.find_all('header', class_='entry-header', limit=5) 
+                try:
+                    response = requests.get(url, headers=headers, timeout=15)
+                    if response.status_code != 200:
+                        await interaction.followup.send("❌ Something went wrong trying to reach the main website.")
+                        return
 
-                if not results:
-                    await interaction.followup.send(f"No results found for '{selected_game}'.")
-                    return
-                
-                # 1. Store dictionaries of data instead of formatted strings
-                found_links = []
-                
-                for header in results:
-                    h1_tag = header.find('h1', class_='entry-title')
-                    if h1_tag and h1_tag.find('a'):
-                        a_tag = h1_tag.find('a')
-                        title = a_tag.text.strip()
-                        game_page_link = a_tag.get('href')
-                        
-                        try:
-                            inner_response = requests.get(game_page_link, headers=headers, timeout=10)
-                            inner_soup = BeautifulSoup(inner_response.text, 'html.parser')
-                            
-                            target_host = "1337x" 
-                            target_link_tag = inner_soup.find('a', string=lambda text: text and target_host.lower() in text.lower())
-                            
-                            if target_link_tag:
-                                final_download_link = target_link_tag.get('href')
-                                
-                                # 2. Save the title and link securely
-                                found_links.append({
-                                    "title": title, 
-                                    "url": final_download_link
-                                })
-                                
-                                if len(found_links) == 2:
-                                    break 
-                                
-                        except Exception as e:
-                            print(f"Error loading {game_page_link}: {e}")
-                            continue
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    results = soup.find_all('header', class_='entry-header', limit=5) 
 
-                # 👇 3. Build the UI View, the Embed, and attach the buttons
-                if found_links:
-                    link_view = discord.ui.View()
+                    if not results:
+                        await interaction.followup.send(f"No results found for '{selected_game}'.")
+                        return
                     
-                    for link_data in found_links:
-                        # Discord limits button text to 80 characters, so we slice the title just in case
-                        button_label = f"Download {link_data['title']}"[:80]
-                        
-                        link_button = discord.ui.Button(
-                            label=button_label, 
-                            url=link_data['url'], 
-                            style=discord.ButtonStyle.link
-                        )
-                        link_view.add_item(link_button)
-                        
-                    # 👇 4. Create the final result embed
-                    result_embed = discord.Embed(
-                        title="🎮 Download Links Found",
-                        description=f"Here are the top **{len(found_links)}** result(s) for **{selected_game}**.",
-                        color=discord.Color.green() # Feel free to change the color!
-                    )
-                    result_embed.set_footer(text="Click the buttons below to download.")
-                        
-                    # 👇 5. Send the message with BOTH the embed and the buttons
-                    await interaction.followup.send(
-                        embed=result_embed, 
-                        view=link_view
-                    )
-                else:
-                    await interaction.followup.send(f"❌ Could not find any **{target_host}** links for **{selected_game}** in the top results.")
-                        
-            except requests.exceptions.RequestException as e:
-                await interaction.followup.send(f"⚠️ Network error occurred: {e}")
+                    for header in results:
+                        h1_tag = header.find('h1', class_='entry-title')
+                        if h1_tag and h1_tag.find('a'):
+                            a_tag = h1_tag.find('a')
+                            title = a_tag.text.strip()
+                            game_page_link = a_tag.get('href')
+                            
+                            try:
+                                inner_response = requests.get(game_page_link, headers=headers, timeout=10)
+                                inner_soup = BeautifulSoup(inner_response.text, 'html.parser')
+                                
+                                target_host = "1337x" 
+                                target_link_tag = inner_soup.find('a', string=lambda text: text and target_host.lower() in text.lower())
+                                
+                                if target_link_tag:
+                                    final_download_link = target_link_tag.get('href')
+                                    found_links.append({"title": title, "url": final_download_link})
+                                    
+                                    if len(found_links) == 2:
+                                        break 
+                            except Exception as e:
+                                print(f"Error loading {game_page_link}: {e}")
+                                continue
+                                
+                    # --- CACHE SAVE ---
+                    if found_links:
+                        try:
+                            await cache.set(name=cache_key, value=json.dumps(found_links), ex=86400)
+                        except Exception as e:
+                            print(f"⚠️ Cache write error: {e}")
+
+                except requests.exceptions.RequestException as e:
+                    await interaction.followup.send(f"⚠️ Network error occurred: {e}")
+                    return
+
+            # ==========================================
+            # 3. BUILD UI
+            # ==========================================
+            if found_links:
+                link_view = discord.ui.View()
+                for link_data in found_links:
+                    button_label = f"Download {link_data['title']}"[:80]
+                    link_button = discord.ui.Button(label=button_label, url=link_data['url'], style=discord.ButtonStyle.link)
+                    link_view.add_item(link_button)
+                    
+                result_embed = discord.Embed(
+                    title="🎮 Download Links Found",
+                    description=f"Here are the top **{len(found_links)}** result(s) for **{selected_game}**.",
+                    color=discord.Color.green() 
+                )
+                result_embed.set_footer(text="Click the buttons below to download.")
+                await interaction.followup.send(embed=result_embed, view=link_view)
+            elif not found_links:
+                # Only send this if the scrape finished but still found nothing
+                await interaction.followup.send(f"❌ Could not find any links for **{selected_game}** in the top results.")
 
         return button_callback
 
 async def scrape_site_search(base_url: str, game_name: str):
+
+    clean_query = game_name.strip().lower()
+    cache_key = f"steamrip_search:{clean_query}"
+    try:
+        cached_data = await cache.get(cache_key)
+        if cached_data:
+            print("⚡ REDIS CACHE HIT! Skipping Playwright entirely.")
+            # Redis stores data as strings, so we unpack it back into a Python list
+            return json.loads(cached_data)
+    except Exception as e:
+        print(f"⚠️ Redis read error (ignoring and scraping anyway): {e}")
+
+    print("🔍 CACHE MISS! Firing up the invisible browser...")
+
     async with async_playwright() as p:
         
         browser = await p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"]) 
@@ -166,6 +191,15 @@ async def scrape_site_search(base_url: str, game_name: str):
                     print(f"⚠️ Skipped a weirdly formatted game box.")
                     continue
                     
+            if results:
+                try:
+                    # ex=86400 tells Redis to automatically delete this record in exactly 24 hours
+                    await cache.set(name=cache_key, value=json.dumps(results), ex=172800)
+                    print("💾 Saved fresh scrape results to Redis Cloud!")
+                except Exception as e:
+                    print(f"⚠️ Failed to save to Redis: {e}")
+
+            print("🎉 SEARCH COMPLETE!")
             return results
             
         except Exception as e:
@@ -173,6 +207,7 @@ async def scrape_site_search(base_url: str, game_name: str):
             return []
         finally:
             await browser.close()
+
 async def get_game_suggestions(query: str):
     safe_query = urllib.parse.quote(query)
     url = f"https://store.steampowered.com/api/storesearch/?term={safe_query}&l=english&cc=US"
@@ -272,90 +307,90 @@ class Scraping(commands.Cog):
     
         await interaction.followup.send(f"🔍 Firing up the invisible browser to search for **{movie_name.title()}**...")
         
-        search_page_url = "https://thepiratebay.org/index.html" 
-        
-        
-        search_bar_selector = "input[name='q']"
-        results_selector = "div.browse section.col-center ol#torrents li.list-entry span.list-item.item-name.item-title a"
-        
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+        cache_key = f"movie_torrent:{movie_name.strip().lower()}"
+        found_movies = []
+
+        try:
+            cached_data = await cache.get(cache_key)
+            if cached_data:
+                print(f"⚡ CACHE HIT for {cache_key}!")
+                found_movies = json.loads(cached_data)
+        except Exception as e:
+            print(f"⚠️ Cache read error: {e}")
+
+        if not found_movies:
+            print("🔍 CACHE MISS. Firing up Playwright...")
+            search_page_url = "https://thepiratebay.org/index.html" 
+            search_bar_selector = "input[name='q']"
+            results_selector = "div.browse section.col-center ol#torrents li.list-entry span.list-item.item-name.item-title a"
             
-            try:
-                
-                await page.goto(search_page_url, wait_until="domcontentloaded", timeout=30000)
-                
-                
-                await page.wait_for_selector(search_bar_selector, timeout=10000)
-                await page.fill(search_bar_selector, movie_name)
-                await page.keyboard.press("Enter")
-                
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
                 
                 try:
-                    await page.wait_for_selector(results_selector, timeout=15000)
-                except:
-                    await page.screenshot(path="debug_after_enter.png", full_page=True)
+                    await page.goto(search_page_url, wait_until="domcontentloaded", timeout=30000)
+                    await page.wait_for_selector(search_bar_selector, timeout=10000)
+                    await page.fill(search_bar_selector, movie_name)
+                    await page.keyboard.press("Enter")
                     
-                    file = discord.File("debug_after_enter.png")
-                    await interaction.followup.send(f"❌ I typed '{movie_name}' and hit Enter, but the list never appeared. Here is what the browser saw:", file=file)
-                    await browser.close()
-                    return
-                    
-                
-                total_elements = await page.locator(results_selector).count()
-                limit = min(10, total_elements)
-                
-                found_movies = []                
-                
-                for i in range(limit):
-                    element = page.locator(results_selector).nth(i)
-                    title = await element.inner_text()
-                    link = await element.get_attribute('href')                    
-                    
-                    if link and link.startswith('/'):
-                        parsed_uri = urllib.parse.urlparse(search_page_url)
-                        base = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-                        link = base + link                        
-                    
-                    found_movies.append({
-                        "title": title.strip(),
-                        "url": link
-                    })                
-                
-                if found_movies:
-                    movie_view = discord.ui.View()
-                    
-                    for idx, movie_data in enumerate(found_movies):                        
-                        button_label = f"{idx+1}. {movie_data['title']}"[:80]
+                    try:
+                        await page.wait_for_selector(results_selector, timeout=15000)
+                    except:
+                        file = discord.File("debug_after_enter.png")
+                        await interaction.followup.send(f"❌ I couldn't find the list for '{movie_name}'.", file=file)
+                        await browser.close()
+                        return
                         
-                        btn = discord.ui.Button(
-                            label=button_label,
-                            url=movie_data['url'],
-                            style=discord.ButtonStyle.link
-                        )
-                        movie_view.add_item(btn)
-                        
+                    total_elements = await page.locator(results_selector).count()
+                    limit = min(10, total_elements)
                     
-                    movie_embed = discord.Embed(
-                        title="🍿 Movie Search Results",
-                        description=f"Found **{len(found_movies)}** results for **{movie_name.title()}**.",
-                        color=discord.Color.purple() 
-                    )
-                    movie_embed.set_footer(text="Click a button below to go to the page.")
+                    for i in range(limit):
+                        element = page.locator(results_selector).nth(i)
+                        title = await element.inner_text()
+                        link = await element.get_attribute('href')                    
+                        
+                        if link and link.startswith('/'):
+                            parsed_uri = urllib.parse.urlparse(search_page_url)
+                            base = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                            link = base + link                        
+                        
+                        found_movies.append({
+                            "title": title.strip(),
+                            "url": link
+                        })                
+                    
+                    
+                    if found_movies:
+                        try:
+                            await cache.set(name=cache_key, value=json.dumps(found_movies), ex=86400)
+                        except Exception as e:
+                            print(f"⚠️ Cache write error: {e}")
 
-                    
-                    await interaction.followup.send(embed=movie_embed, view=movie_view)
-                    
-                else:
-                    await interaction.followup.send(f"❌ No links were found for **{movie_name.title()}**.")
+                except Exception as e:
+                    print(f"Playwright Error: {e}")
+                    await interaction.followup.send("⚠️ The browser hit a snag or timed out.")
+                    return
+                finally:
+                    await browser.close()
+
+        
+        if found_movies:
+            movie_view = discord.ui.View()
+            for idx, movie_data in enumerate(found_movies):                        
+                button_label = f"{idx+1}. {movie_data['title']}"[:80]
+                btn = discord.ui.Button(label=button_label, url=movie_data['url'], style=discord.ButtonStyle.link)
+                movie_view.add_item(btn)
                 
-            except Exception as e:
-                print(f"Playwright Error: {e}")
-                await interaction.followup.send("⚠️ The browser hit a snag or timed out.")
-                
-            finally:
-                await browser.close()
+            movie_embed = discord.Embed(
+                title="🍿 Movie Search Results",
+                description=f"Found **{len(found_movies)}** results for **{movie_name.title()}**.",
+                color=discord.Color.purple() 
+            )
+            movie_embed.set_footer(text="Click a button below to go to the page.")
+            await interaction.followup.send(embed=movie_embed, view=movie_view)
+        else:
+            await interaction.followup.send(f"❌ No links were found for **{movie_name.title()}**.")
         
 
     @app_commands.command(name="game_torrent", description="Searches the website for a torrent link!")
@@ -401,101 +436,111 @@ class Scraping(commands.Cog):
 
 
     @app_commands.command(name="ebook", description="One stop destination for all the reading material!")
-    async def ebook(self,interaction: discord.Interaction, book_name: str):
+    async def ebook(self, interaction: discord.Interaction, book_name: str):
         await interaction.response.defer()
         await interaction.followup.send(f"📚 Searching for **{book_name.title()}** ...")
 
-        safe_name = urllib.parse.quote_plus(book_name)
-        base_url = "https://annas-archive.gd"
-        search_url = f"{base_url}/search?q={safe_name}"
-        search_selector = "a[href^='/md5/']"
+        cache_key = f"ebook:{book_name.strip().lower()}"
+        ebook_data = {} # Will hold {"title": "Book Name", "links": ["url1", "url2"]}
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
 
-            try:
-                # Step 1: Search page
-                await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
-                await page.wait_for_selector(search_selector, timeout=15000)
+        try:
+            cached_data = await cache.get(cache_key)
+            if cached_data:
+                print(f"⚡ CACHE HIT for {cache_key}!")
+                ebook_data = json.loads(cached_data)
+        except Exception as e:
+            print(f"⚠️ Cache read error: {e}")
 
-                # Find first relevant result
-                results = page.locator(search_selector)
-                count = await results.count()
 
-                chosen_link = None
-                chosen_title = None
+        if not ebook_data:
+            print("🔍 CACHE MISS. Firing up Playwright...")
+            safe_name = urllib.parse.quote_plus(book_name)
+            base_url = "https://annas-archive.gd"
+            search_url = f"{base_url}/search?q={safe_name}"
+            search_selector = "a[href^='/md5/']"
 
-                for i in range(count):
-                    item = results.nth(i)
-                    link = await item.get_attribute("href")
-                    title = await item.inner_text()
-                    if book_name.lower() in title.lower():
-                        chosen_link = link
-                        chosen_title = title
-                        break
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
 
-                if not chosen_link:
-                    await interaction.followup.send(
-                        f"Sorry, I couldn’t find a relevant match for **{book_name.title()}**."
-                    )
-                    await browser.close()
+                try:
+                    await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+                    await page.wait_for_selector(search_selector, timeout=15000)
+
+                    results = page.locator(search_selector)
+                    count = await results.count()
+
+                    chosen_link = None
+                    chosen_title = None
+
+                    for i in range(count):
+                        item = results.nth(i)
+                        link = await item.get_attribute("href")
+                        title = await item.inner_text()
+                        if book_name.lower() in title.lower():
+                            chosen_link = link
+                            chosen_title = title
+                            break
+
+                    if not chosen_link:
+                        await interaction.followup.send(f"Sorry, I couldn’t find a relevant match for **{book_name.title()}**.")
+                        await browser.close()
+                        return
+
+                    detail_url = f"{base_url}{chosen_link}"
+                    await page.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
+
+                    slow_div_selector = "div.mb-4:nth-of-type(2) li a"
+                    await page.wait_for_selector(slow_div_selector, timeout=15000)
+
+                    slow_items = page.locator(slow_div_selector)
+                    dl_count = await slow_items.count()
+
+                    slow_links = []
+                    for i in range(min(dl_count, 3)):  
+                        dl_item = slow_items.nth(i)
+                        dl_href = await dl_item.get_attribute("href")
+                        if dl_href:
+                            if dl_href.startswith("/"):
+                                dl_href = f"{base_url}{dl_href}"
+                            slow_links.append(dl_href)
+
+                    # --- CACHE SAVE ---
+                    if slow_links:
+                        ebook_data = {
+                            "title": chosen_title.strip(),
+                            "links": slow_links
+                        }
+                        try:
+                            await cache.set(name=cache_key, value=json.dumps(ebook_data), ex=86400)
+                        except Exception as e:
+                            print(f"⚠️ Cache write error: {e}")
+
+                except Exception as e:
+                    await page.screenshot(path="debug_ebook_error.png", full_page=True)
+                    await interaction.followup.send("⚠️ An unexpected error occurred. Screenshot saved as `debug_ebook_error.png`.")
+                    print(f"Playwright Error in ebook command: {e}")
                     return
+                finally:
+                    await browser.close()
 
-                # Step 2: Go to book detail page
-                detail_url = f"{base_url}{chosen_link}"
-                await page.goto(detail_url, wait_until="domcontentloaded", timeout=30000)
+        
+        if ebook_data and ebook_data.get("links"):
+            view = discord.ui.View()
+            for idx, link in enumerate(ebook_data["links"], start=1):
+                button = discord.ui.Button(label=f"🐢 Reliable Download {idx}", url=link)
+                view.add_item(button)
 
-                # Step 3: Extract slow download links from the SECOND div.mb-4
-                slow_div_selector = "div.mb-4:nth-of-type(2) li a"
-                await page.wait_for_selector(slow_div_selector, timeout=15000)
-
-                slow_items = page.locator(slow_div_selector)
-                dl_count = await slow_items.count()
-
-                slow_links = []
-                for i in range(min(dl_count, 3)):  # limit to top 3
-                    dl_item = slow_items.nth(i)
-                    dl_href = await dl_item.get_attribute("href")
-                    if dl_href:
-                        if dl_href.startswith("/"):
-                            dl_href = f"{base_url}{dl_href}"
-                        slow_links.append(dl_href)
-
-                if slow_links:
-                    # Create a View with buttons
-                    view = discord.ui.View()
-                    for idx, link in enumerate(slow_links, start=1):
-                        button = discord.ui.Button(
-                            label=f"🐢 Reliable Download {idx}",
-                            url=link
-                        )
-                        view.add_item(button)
-
-                    # Create an embed
-                    embed = discord.Embed(
-                        title=f"Download options for '{chosen_title.strip()}'",
-                        description="Click one of the buttons below to download.",
-                        color=discord.Color.yellow()
-                    )
-                    embed.set_footer(text="Powered by Anna's Archive")
-
-                    await interaction.followup.send(embed=embed, view=view)
-                else:
-                    await interaction.followup.send(
-                        f"Found the book page for **{book_name.title()}**, but no download links were detected."
-                    )
-
-            except Exception as e:
-                await page.screenshot(path="debug_ebook_error.png", full_page=True)
-                await interaction.followup.send(
-                    f"⚠️ An unexpected error occurred. Screenshot saved as `debug_ebook_error.png`."
-                )
-                print(f"Playwright Error in ebook command: {e}")
-
-            finally:
-                await browser.close()
-
+            embed = discord.Embed(
+                title=f"Download options for '{ebook_data['title']}'",
+                description="Click one of the buttons below to download.",
+                color=discord.Color.yellow()
+            )
+            embed.set_footer(text="Powered by Anna's Archive")
+            await interaction.followup.send(embed=embed, view=view)
+        else:
+            await interaction.followup.send(f"Found the book page for **{book_name.title()}**, but no download links were detected.")
 
     @app_commands.command(name="game_direct", description="Search the website directly for game downloads")
     async def game_direct(self, interaction: discord.Interaction, game_name: str):
