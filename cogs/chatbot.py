@@ -278,7 +278,7 @@ class AIChat(commands.Cog):
                 await interaction.followup.send(
                     f"🎬 **Movie Identified:** {identity}\n"
                     f"🎞️ **Plot Summary:** {summary}\n\n"
-                    f"**Download the movie using the command /movie.**"
+                    f"**Download the movie using the command: /movie.**"
                 )
             else:
                 await interaction.followup.send("🤔 I couldn't tell if that's a book or a movie. Try a clearer shot!")
