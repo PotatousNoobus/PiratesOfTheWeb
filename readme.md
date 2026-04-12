@@ -37,7 +37,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
     </tr>
     <tr>
       <td rowspan="2" align="center"> popcorn <br><b>Cinema</b></td>
-      <td><code>/movie</code></td>
+      <td><code>/movie_torrent</code></td>
       <td>Simulates physical typing/searching on torrent databases.</td>
     </tr>
     <tr>
