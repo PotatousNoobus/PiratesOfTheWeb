@@ -62,7 +62,7 @@ class GameSelectionView(discord.ui.View):
                                 final_download_link = target_link_tag.get('href')
                                 link_view = discord.ui.View()
                                 link_button = discord.ui.Button(
-                                    label=f"Download", 
+                                    label=f"⬇️ Download Now", 
                                     url=final_download_link, 
                                     style=discord.ButtonStyle.link # This makes it a clickable link!
                                 )
