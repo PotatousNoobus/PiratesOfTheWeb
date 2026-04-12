@@ -2,9 +2,6 @@
 
 Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty first mate, ready to plunder the vast ocean of the internet for all forms of digital treasure. It is a multi-talented pirate, capable of fetching movies, games, eBooks, magazines, research papers, chatting with AI and much more!
 
-## 🎰 Sin City Hackathon 2026 Edition
-This version has been specially modified for the **Sin City: Las Vegas Hackathon**. The neon lights are buzzing, the stakes are high.
-
 ## 🌟 Features
 
 * **🎬 Movie Downloads and Streaming**: Get direct torrent search results for movies or stream them online instantly.
