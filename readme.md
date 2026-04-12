@@ -1,14 +1,15 @@
 # 🏴‍☠️ Pirates of the Web 🦜
 
-Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty first mate, ready to plunder the vast ocean of the internet for entertainment. What started as a movie bot has grown into a multi-talented pirate, capable of fetching movies, eBooks, and more!
+Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty first mate, ready to plunder the vast ocean of the internet for all forms of digital treasure. What started as a simple movie bot has grown into a multi-talented pirate, capable of fetching movies, games, eBooks, and even chatting with AI.
 
 ## 🌟 Features
 
-*   **🎬 Movie Streaming**: Get direct stream links for any movie.
-*   **📚 eBook Scouring**: Find links to download eBooks from Anna's Archive.
-*   **🤖 AI Book Recommendations**: Ask the AI for book recommendations based on your favorite genre.
-*   **💬 AI Chat**: Have a conversation with a powerful AI right within your Discord server.
-*   **🐳 Dockerized**: Easy to deploy and manage with Docker.
+*   **🎬 Movie Downloads**: Get direct torrent search results for movies.
+*   **🎮 Game Downloads**: Find torrent links for your favorite games.
+*   **📚 eBook Scouring**: Instantly find and link eBooks from Anna's Archive.
+*   **🤖 AI Book Recommendations**: Ask a powerful AI for book recommendations based on your favorite genre.
+*   **💬 AI Chat**: Have a full conversation with an AI right within your Discord server.
+*   **🐳 Dockerized**: Built for easy deployment and management with Docker.
 
 ---
 
@@ -23,10 +24,11 @@ This bot is designed to be deployed using Docker, which handles all the dependen
 
 ### 2. Configuration
 
-Create a file named `.env` in the root of the project directory and add your Discord bot token:
+Create a file named `.env` in the root of the project directory and add your Discord bot token and Google API Key:
 
 ```env
 DISCORD_BOT_TOKEN=YOUR_SECRET_BOT_TOKEN_HERE
+GOOGLE_API_KEY=YOUR_GOOGLE_AI_API_KEY_HERE
 ```
 
 ### 3. Create Docker Files
@@ -45,8 +47,7 @@ WORKDIR /app
 # Copy the requirements file into the container at /app
 COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
-# and install playwright dependencies
+# Install dependencies and Playwright's browser
 RUN pip install --no-cache-dir -r requirements.txt \
     && playwright install --with-deps chromium
 
@@ -78,19 +79,13 @@ Open your terminal in the project's root directory and run:
 docker-compose up --build -d
 ```
 
-Your bot is now online!  sailing the digital seas.
+Your bot is now online and sailing the digital seas! ⛵
 
 ---
 
 ## 💻 Local Installation (For Development)
 
 If you prefer to run the bot on your local machine for testing or development, follow these steps.
-
-### 1. Prerequisites
-
-*   Python 3.8+
-
-### 2. Setup Instructions
 
 1.  **Clone the repository:**
     ```bash
@@ -118,34 +113,34 @@ If you prefer to run the bot on your local machine for testing or development, f
     ```
 
 4.  **Install Playwright browsers:**
-    This command downloads the necessary browser binaries for Playwright.
     ```bash
     playwright install
     ```
 
-5.  **Configure your bot token:**
-    Create a file named `.env` in the root project directory. Add your Discord bot token like so:
+5.  **Configure environment variables:**
+    Create a file named `.env` and add your keys:
     ```env
     DISCORD_BOT_TOKEN=YOUR_SECRET_BOT_TOKEN_HERE
+    GOOGLE_API_KEY=YOUR_GOOGLE_AI_API_KEY_HERE
     ```
 
-### 3. Running the Bot Locally
-
-Once you've completed the setup, you can start the bot with:
-
-```bash
-python main.py
-```
+6.  **Running the Bot Locally:**
+    ```bash
+    python main.py
+    ```
 
 ---
 
 ## 🤖 Bot Commands
 
+All commands are slash commands (e.g., `/movie`, not `!movie`).
+
 | Command | Arguments | Description |
 | :--- | :--- | :--- |
-| `!stream` | `<movie_name>` | 🎬 Provides a direct stream link for the specified movie. |
-| `!ebook` | `<book_name>` | 📚 Searches Anna's Archive and returns the link for the first result. |
-| `!chat` | `<message>` | 💬 Starts a conversation with the Gemini AI. |
-| `!recommend`| `<genre>` | 🌟 Asks the AI to recommend 5 books from a specific genre. |
+| `/movie` | `<name>` | 🎬 Searches for movie torrents and provides the top results. |
+| `/game` | `<name>` | 🎮 Searches for game torrents from trusted sources like FitGirl. |
+| `/ebook` | `<name>` | 📚 Finds the top result for an eBook on Anna's Archive. |
+| `/chat` | `<message>` | 💬 Starts a conversation with the integrated Gemini AI. |
+| `/recommend`| `<genre>` | 🌟 Asks the AI to recommend 5 books from a specific genre. |
 
 Enjoy your adventures on the high seas! 🌊
