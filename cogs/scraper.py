@@ -108,7 +108,7 @@ async def scrape_site_search(base_url: str, game_name: str):
     print(f"\n--- 🚀 STARTING SEARCH FOR: {game_name} ---")
     async with async_playwright() as p:
         # Keep this False so you can watch what happens!
-        browser = await p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"]) 
+        browser = await p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"]) 
         context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         page = await context.new_page()
         
