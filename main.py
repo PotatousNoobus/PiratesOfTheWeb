@@ -31,8 +31,7 @@ class MyBot(commands.Bot):
 
 
 async def get_game_suggestions(query: str):
-    """Fetches instant game name suggestions using Steam's public API."""
-    # We use urllib to make the query safe for URLs (e.g., "GTA 5" -> "GTA%205")
+    
     safe_query = urllib.parse.quote(query)
     url = f"https://store.steampowered.com/api/storesearch/?term={safe_query}&l=english&cc=US"
     
@@ -57,5 +56,5 @@ async def get_game_suggestions(query: str):
 if __name__ == "__main__":
     bot = MyBot()
     keep_alive()
-    # Run the bot using the hidden token
+  
     bot.run(TOKEN)
