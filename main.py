@@ -64,7 +64,7 @@ class MyBot(commands.Bot):
         print('---------------------------')
         print(f'📚 Bot is online as {self.user.name}!')
         print('---------------------------')
-        activity = discord.Activity(type=discord.ActivityType.watching, name="movies and games | /ask")
+        activity = discord.Activity(type=discord.ActivityType.watching, name="movies and games | /chat")
         await bot.change_presence(activity=activity)
 
 
