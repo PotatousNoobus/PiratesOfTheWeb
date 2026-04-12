@@ -32,7 +32,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
     <tr>
       <td rowspan="2" align="center">🎮<br><b>Gaming</b></td>
       <td><code>/game_direct</code></td>
-      <td>Headless Playwright interaction with SteamRIP for direct links.</td>
+      <td>Headless Playwright interaction for direct links.</td>
     </tr>
     <tr>
       <td><code>/game_torrent</code></td>
@@ -45,7 +45,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
     </tr>
     <tr>
       <td><code>/stream</code></td>
-      <td>Directly constructs dynamic streaming links via Westream.</td>
+      <td>Directly constructs dynamic streaming links.</td>
     </tr>
     <tr>
       <td rowspan="3" align="center">🤖<br><b>AI Hub</b></td>
@@ -63,7 +63,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
     <tr>
       <td rowspan="2" align="center">📚<br><b>Library</b></td>
       <td><code>/ebook</code></td>
-      <td>Automated pathfinding on Anna's Archive for PDF/EPUBs.</td>
+      <td>Automated pathfinding on for PDFs, EPUBs, etc.</td>
     </tr>
     <tr>
       <td><code>/review</code></td>
