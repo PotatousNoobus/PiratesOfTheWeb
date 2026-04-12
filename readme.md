@@ -13,6 +13,8 @@ Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty f
 * **💬 AI Chat**: Have a full conversation with an AI right within your Discord server.
 * **🐳 Dockerized**: Built for easy deployment and management with Docker.
 
+---
+
 ## 🤖 Bot Commands
 
 All commands are slash commands (e.g., `/movie`, not `!movie`).
