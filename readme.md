@@ -11,6 +11,58 @@ Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty f
 *   **💬 AI Chat**: Have a full conversation with an AI right within your Discord server.
 *   **🐳 Dockerized**: Built for easy deployment and management with Docker.
 
+<table>
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Command</th>
+      <th>The "Secret Sauce" (How it Works)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="2" align="center">🎮<br><b>Gaming</b></td>
+      <td><code>/game_direct</code></td>
+      <td>Headless Playwright interaction with SteamRIP for direct links.</td>
+    </tr>
+    <tr>
+      <td><code>/game_torrent</code></td>
+      <td>Scrapes trusted sources for high-quality magnet links.</td>
+    </tr>
+    <tr>
+      <td rowspan="2" align="center">🍿<br><b>Cinema</b></td>
+      <td><code>/movie</code></td>
+      <td>Simulates physical typing/searching on torrent databases.</td>
+    </tr>
+    <tr>
+      <td><code>/stream</code></td>
+      <td>Directly constructs dynamic streaming links via Westream.</td>
+    </tr>
+    <tr>
+      <td rowspan="3" align="center">🤖<br><b>AI Hub</b></td>
+      <td><code>/ask</code></td>
+      <td>General-purpose knowledge retrieval via Gemini 1.5 Flash.</td>
+    </tr>
+    <tr>
+      <td><code>/image</code></td>
+      <td>Computer Vision to identify posters or covers from uploads.</td>
+    </tr>
+    <tr>
+      <td><code>/recommend</code></td>
+      <td>Context-aware AI recommendations for books/movies.</td>
+    </tr>
+    <tr>
+      <td rowspan="2" align="center">📚<br><b>Library</b></td>
+      <td><code>/ebook</code></td>
+      <td>Automated pathfinding on Anna's Archive for PDF/EPUBs.</td>
+    </tr>
+    <tr>
+      <td><code>/review</code></td>
+      <td>Google Books API integration for official critiques.</td>
+    </tr>
+  </tbody>
+</table>
+
 ---
 
 ## 🚀 Deployment (Recommended)
