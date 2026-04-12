@@ -1,4 +1,4 @@
-# 🏴‍☠️ Pirates of the Web 🦜
+# 🏴‍☠️ Pirates of the Web 🌐
 
 Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty first mate, ready to plunder the vast ocean of the internet for all forms of digital treasure. What started as a simple movie bot has grown into a multi-talented pirate, capable of fetching movies, games, eBooks, and even chatting with AI.
 
