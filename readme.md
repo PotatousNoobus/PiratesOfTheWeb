@@ -3,7 +3,7 @@
 Ahoy, matey! Welcome to the digital high seas. This Discord bot is your trusty first mate, ready to plunder the vast ocean of the internet for all forms of digital treasure. It is a multi-talented pirate, capable of fetching movies, games, eBooks, magazines, research papers, chatting with AI and much more!
 
 ## 🎰 Sin City Hackathon 2026 Edition
-This version has been specially modified for the **Sin City: Las Vegas Hackathon**. The neon lights are buzzing, the stakes are high, and the bot features a uniform **Yellow Embed** interface to match the high-roller aesthetic.
+This version has been specially modified for the **Sin City: Las Vegas Hackathon**. The neon lights are buzzing, the stakes are high.
 
 ## 🌟 Features
 
@@ -49,15 +49,15 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
     </tr>
     <tr>
       <td rowspan="3" align="center">🤖<br><b>AI Hub</b></td>
-      <td><code>/ask</code></td>
+      <td><code>/chat</code></td>
       <td>General-purpose knowledge retrieval via Gemini 2.5 Flash.</td>
     </tr>
     <tr>
-      <td><code>/image</code></td>
+      <td><code>/detect</code></td>
       <td>Computer Vision to identify posters or covers from uploads.</td>
     </tr>
     <tr>
-      <td><code>/recommend</code></td>
+      <td><code>/book_recommend</code></td>
       <td>Context-aware AI recommendations for books/movies.</td>
     </tr>
     <tr>
@@ -66,7 +66,7 @@ All commands are slash commands (e.g., `/movie`, not `!movie`).
       <td>Automated pathfinding on for PDFs, EPUBs, etc.</td>
     </tr>
     <tr>
-      <td><code>/review</code></td>
+      <td><code>/book_review</code></td>
       <td>Google Books API integration for official critiques.</td>
     </tr>
   </tbody>
