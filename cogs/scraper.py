@@ -9,7 +9,7 @@ import os
 from google import genai
 import aiohttp
 
-class GameSelectionView(discord.ui.View):
+class SelectionView(discord.ui.View):
     def __init__(self, game_options):
         super().__init__(timeout=60) 
         
@@ -23,7 +23,7 @@ class GameSelectionView(discord.ui.View):
             for child in self.children:
                 child.disabled = True
             
-            await interaction.response.edit_message(content=f"🔍 Excellent choice. Fetching links for **{selected_game}**...", view=self)
+            await interaction.response.edit_message(content=f"🔍 Excellent choice. Fetching the top links for **{selected_game}**...", view=self)
 
             safe_name = urllib.parse.quote(selected_game)
             url = f"https://www.fitgirl-repacks.site/?s={safe_name}" 
@@ -36,13 +36,15 @@ class GameSelectionView(discord.ui.View):
                     return
 
                 soup = BeautifulSoup(response.text, 'html.parser')
+                
                 results = soup.find_all('header', class_='entry-header', limit=5) 
 
                 if not results:
                     await interaction.followup.send(f"No results found for '{selected_game}'.")
                     return
-
-                message_lines = [f"**Top results for '{selected_game}':**\n"]
+                
+                # 👇 1. Store dictionaries of data instead of formatted strings
+                found_links = []
                 
                 for header in results:
                     h1_tag = header.find('h1', class_='entry-title')
@@ -60,29 +62,101 @@ class GameSelectionView(discord.ui.View):
                             
                             if target_link_tag:
                                 final_download_link = target_link_tag.get('href')
-                                link_view = discord.ui.View()
-                                link_button = discord.ui.Button(
-                                    label=f"⬇️ Download Now", 
-                                    url=final_download_link, 
-                                    style=discord.ButtonStyle.link # This makes it a clickable link!
-                                )
-                                link_view.add_item(link_button)
-                                await interaction.followup.send(
-                                    content=f"**Top result for '{selected_game}':**\n🎮 **{title}**",
-                                    view=link_view
-                                )
-                                return                    
+                                
+                                # 👇 2. Save the title and link securely
+                                found_links.append({
+                                    "title": title, 
+                                    "url": final_download_link
+                                })
+                                
+                                if len(found_links) == 2:
+                                    break 
                                 
                         except Exception as e:
-                            message_lines.append(f"🎮 **{title}**\n⚠️ *Error loading the game page.*\n")
+                            print(f"Error loading {game_page_link}: {e}")
+                            continue
 
-                await interaction.followup.send(f"❌ Could not find a **{target_host}** link for **{selected_game}** in the top results.")
+                # 👇 3. Build the UI View and attach the buttons
+                if found_links:
+                    link_view = discord.ui.View()
+                    
+                    for link_data in found_links:
+                        # Discord limits button text to 80 characters, so we slice the title just in case
+                        button_label = f"Download {link_data['title']}"[:80]
+                        
+                        link_button = discord.ui.Button(
+                            label=button_label, 
+                            url=link_data['url'], 
+                            style=discord.ButtonStyle.link
+                        )
+                        link_view.add_item(link_button)
+                        
+                    # Send the single message with all attached buttons
+                    await interaction.followup.send(
+                        content=f"**Top {len(found_links)} result(s) for '{selected_game}':**", 
+                        view=link_view
+                    )
+                else:
+                    await interaction.followup.send(f"❌ Could not find any **{target_host}** links for **{selected_game}** in the top results.")
                         
             except requests.exceptions.RequestException as e:
                 await interaction.followup.send(f"⚠️ Network error occurred: {e}")
 
         return button_callback
 
+async def scrape_site_search(base_url: str, game_name: str):
+    print(f"\n--- 🚀 STARTING SEARCH FOR: {game_name} ---")
+    async with async_playwright() as p:
+        # Keep this False so you can watch what happens!
+        browser = await p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"]) 
+        context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        page = await context.new_page()
+        
+        try:
+            search_query = game_name.replace(" ", "+")
+            search_url = f"{base_url}/?s={search_query}" 
+            
+            print(f"📍 Step 1: Going to URL: {search_url}")
+            await page.goto(search_url, timeout=30000) # Increased to 30 seconds
+            
+            print("⏳ Step 2: Waiting for the game thumbnails to load...")
+            try:
+                # Increased timeout to 15 seconds
+                await page.wait_for_selector('a.all-over-thumb-link', timeout=15000)
+                print("✅ Step 3: Found the game thumbnails!")
+            except Exception as e:
+                print(f"❌ ERROR: Timed out waiting for the games to appear!")
+                # THIS IS THE MOST IMPORTANT LINE: It saves a picture of what broke
+                await page.screenshot(path="CRASH_REPORT_search.png", full_page=True)
+                print("📸 Saved a screenshot of the crash to CRASH_REPORT_search.png")
+                return [] 
+            
+            elements = await page.locator('a.all-over-thumb-link').all()
+            print(f"🔍 Step 4: Found {len(elements)} total game links on the page.")
+            
+            results = []
+            for el in elements[:7]: 
+                raw_link = await el.get_attribute('href')
+                
+                try:
+                    title = await el.locator('.screen-reader-text').inner_text()
+                except:
+                    print("⚠️ Warning: Couldn't find screen-reader-text, using fallback title.")
+                    title = raw_link.replace('-', ' ').replace('/', '').title()
+                    
+                if raw_link and title:
+                    clean_path = raw_link.replace(base_url, "").lstrip('/')
+                    results.append({"title": title.strip(), "path": clean_path})
+                    print(f"   -> Added: {title.strip()}")
+                    
+            print("🎉 SEARCH COMPLETE!")
+            return results
+            
+        except Exception as e:
+            print(f"❌ CRITICAL SCRAPE ERROR: {e}")
+            return []
+        finally:
+            await browser.close()
 async def get_game_suggestions(query: str):
     """Fetches instant game names from Steam to use for our buttons."""
     safe_query = urllib.parse.quote(query)
@@ -100,6 +174,40 @@ async def get_game_suggestions(query: str):
     except Exception as e:
         print(f"API Error: {e}")
     return []
+async def scrape_direct_download(base_url: str, relative_path: str):
+    """Teleports directly to the selected game page to grab the download button."""
+    async with async_playwright() as p:
+        # Remember to change headless=True when moving to your server!
+        browser = await p.chromium.launch(headless=False, args=["--disable-blink-features=AutomationControlled"]) 
+        context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        page = await context.new_page()
+        
+        try:
+            full_game_url = f"{base_url.rstrip('/')}/{relative_path}"
+            await page.goto(full_game_url, timeout=15000)
+
+            button_selector = 'a.shortc-button'
+            await page.wait_for_selector(button_selector, timeout=15000)
+
+            raw_link = await page.locator(button_selector).first.get_attribute('href')
+
+            # --- THE BULLETPROOF URL FIX ---
+            if raw_link:
+                if raw_link.startswith('//'):
+                    return f"https:{raw_link}"
+                elif raw_link.startswith('/'):
+                    return f"{base_url.rstrip('/')}{raw_link}"
+                elif not raw_link.startswith('http'):
+                    return f"https://{raw_link}"
+                else:
+                    return raw_link
+            return None
+            
+        except Exception as e:
+            print(f"Download scrape failed: {e}")
+            return None
+        finally:
+            await browser.close()
 
 class Scraping(commands.Cog):
     def __init__(self, bot):
@@ -119,24 +227,41 @@ class Scraping(commands.Cog):
         await interaction.response.defer()
         safe_name = urllib.parse.quote_plus(movie_name)
         
-        # Build the exact link using the westream.to URL structure
+        # Build the exact link using the URL structure
         base_url = "https://westream.to/search?keyword=" 
         final_link = base_url + safe_name
         
-        await interaction.followup.send(f"🍿 Here is the stream link for **{movie_name.title()}**:\n{final_link}")
-
+        # 👇 1. Create a View to hold the button
+        view = discord.ui.View()
         
-    @app_commands.command()
+        # 👇 2. Create the Link Button (Discord forces these to be grey)
+        # We cap the label at 80 characters to prevent API crashes on super long movie names
+        button_label = f"Watch {movie_name.title()}"[:80]
+        stream_button = discord.ui.Button(
+            label=button_label, 
+            style=discord.ButtonStyle.link, 
+            url=final_link
+        )
+        
+        # 👇 3. Attach the button to the View
+        view.add_item(stream_button)
+        
+        # 👇 4. Send the message and attach the View
+        await interaction.followup.send(
+            content=f"🍿 Here is the stream link for **{movie_name.title()}**:", 
+            view=view
+        )
+
+    
+    @app_commands.command(name="movie", description="Physically types into the search bar and grabs dynamic links.")
     async def movie(self, interaction: discord.Interaction, movie_name: str):
-        """Physically types into the search bar and grabs the top 10 dynamic links."""
         await interaction.response.defer()
     
         await interaction.followup.send(f"🔍 Firing up the invisible browser to search for **{movie_name.title()}**...")
         
-        
         search_page_url = "https://thepiratebay.org/index.html" 
         
-        # 2. The exact selectors we hunted down!
+        # The exact selectors we hunted down!
         search_bar_selector = "input[name='q']"
         results_selector = "div.browse section.col-center ol#torrents li.list-entry span.list-item.item-name.item-title a"
         
@@ -158,7 +283,9 @@ class Scraping(commands.Cog):
                     await page.wait_for_selector(results_selector, timeout=15000)
                 except:
                     await page.screenshot(path="debug_after_enter.png", full_page=True)
-                    await interaction.followup.send(f"❌ I typed '{movie_name}' and hit Enter, but the list never appeared. I saved a `debug_after_enter.png` so we can see what happened!")
+                    # Uploads the screenshot directly to Discord for easier debugging
+                    file = discord.File("debug_after_enter.png")
+                    await interaction.followup.send(f"❌ I typed '{movie_name}' and hit Enter, but the list never appeared. Here is what the browser saw:", file=file)
                     await browser.close()
                     return
                     
@@ -166,7 +293,8 @@ class Scraping(commands.Cog):
                 total_elements = await page.locator(results_selector).count()
                 limit = min(10, total_elements)
                 
-                message_lines = [f"**Top {limit} results for '{movie_name.title()}':**\n"]
+                # 👇 Create a list to securely hold our scraped data instead of text lines
+                found_movies = []
                 
                 # Step 5: Loop through them and pull the text and href attributes
                 for i in range(limit):
@@ -180,10 +308,34 @@ class Scraping(commands.Cog):
                         base = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
                         link = base + link
                         
-                    message_lines.append(f"{i+1}. **{title.strip()}**\n🔗 <{link}>\n")
+                    # Add the data to our list securely
+                    found_movies.append({
+                        "title": title.strip(),
+                        "url": link
+                    })
+                
+                # 👇 Step 6: Build the UI View and attach the buttons
+                if found_movies:
+                    movie_view = discord.ui.View()
                     
-                final_message = "\n".join(message_lines)
-                await interaction.followup.send(final_message)
+                    for idx, movie_data in enumerate(found_movies):
+                        # Add numbering (1., 2., etc.) and truncate to 80 chars to prevent Discord API crashes
+                        button_label = f"{idx+1}. {movie_data['title']}"[:80]
+                        
+                        btn = discord.ui.Button(
+                            label=button_label,
+                            url=movie_data['url'],
+                            style=discord.ButtonStyle.link
+                        )
+                        movie_view.add_item(btn)
+                        
+                    # Send the final message with all buttons attached
+                    await interaction.followup.send(
+                        content=f"🍿 **Top {len(found_movies)} results for '{movie_name.title()}':**",
+                        view=movie_view
+                    )
+                else:
+                    await interaction.followup.send(f"❌ No links were found for **{movie_name.title()}**.")
                 
             except Exception as e:
                 print(f"Playwright Error: {e}")
@@ -217,7 +369,7 @@ class Scraping(commands.Cog):
             raw_text = response.text.replace('\n', '').strip()
             game_options = [g.strip() for g in raw_text.split(',') if g.strip()]
             
-            view = GameSelectionView(game_options)
+            view = SelectionView(game_options)
             
             await interaction.followup.send(f"🤖 I found a few possibilities for **{game_name}**. Which one do you mean?", view=view)
             
@@ -317,25 +469,36 @@ class Scraping(commands.Cog):
                 await browser.close()
 
 
-    @app_commands.command(name="game_direct", description="Directly grabs the download link for a game.")
+    @app_commands.command(name="game_direct", description="Search the website directly for game downloads")
     async def game_direct(self, interaction: discord.Interaction, game_name: str):
+        # 1. Defer immediately!
         await interaction.response.defer()
         
-        # 1. Ping Steam for instant, perfectly spelled suggestions
-        suggested_names = await get_game_suggestions(game_name)
+        TARGET_WEBSITE = 'https://steamrip.com' # Replace with your actual target
         
-        if suggested_names:
-            # 2. Show the buttons
-            view = GameSelectionView(suggested_names)
+        # 2. Trigger the silent background search
+        website_results = await scrape_site_search(TARGET_WEBSITE, game_name)
+        
+        if website_results:
+            # 3. Present the perfectly matched buttons
+            view = GameSelectionView(website_results, TARGET_WEBSITE)
             
             embed = discord.Embed(
-                title=f"🔎 Found {len(suggested_names)} matches for '{game_name}'",
-                description="Select the exact version you want the bot to scrape for:",
+                title=f"🔎 Found {len(website_results)} matches for '{game_name}'",
+                description="Click one to grab the link:",
                 color=discord.Color.green()
             )
             await interaction.followup.send(embed=embed, view=view)
+            
         else:
-            await interaction.followup.send(f"❌ Steam couldn't find any games matching **{game_name}**.")
+            embed = discord.Embed(
+                title = "❗Search Failed",
+                description=f"❌ I couldn't find any games matching **{game_name}**.",
+                color=discord.Color.red()
+            )
+            
+            # We completely remove 'view=dl_view' here so it just sends the text/embed
+            await interaction.followup.send(embed=embed)
 
 async def fetch_game_links(url: str, game_name: str):
     """The core Playwright scraper that grabs the final link."""
