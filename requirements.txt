@@ -1,0 +1,9 @@
+discord.py
+requests
+beautifulsoup4
+playwright
+google-genai
+aiohttp
+python-dotenv
+google-api-core
+flask
