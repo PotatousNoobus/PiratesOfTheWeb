@@ -11,7 +11,7 @@ This version has been specially modified for the **Sin City: Las Vegas Hackathon
 * **🎮 Game Downloads**: Find direct or torrent links for your favorite games from trusted sources.
 * **📚 eBook/Magazine/Comic Scouring**: Instantly download almost every printed/digital reading material on the internet.
 * **👁️ Multimodal Image Recognition**: Upload a book cover or movie poster and the bot will identify it using Gemini 2.5 Flash.
-* **📖 Official Book Reviews**: Fetches "trustworthy" data (ratings, authors, official summaries) directly from the **Google Books API**.
+* **📖 Official Book Reviews**: Fetches trustworthy data (ratings, authors, official summaries) directly from the **Google Books API**.
 * **🤖 AI Book Recommendations**: Ask a powerful AI for book recommendations based on your favorite genre or a specific book.
 * **💬 AI Chat**: Have a full conversation with an AI right within your Discord server.
 * **🐳 Dockerized**: Built for easy deployment and management with Docker.
