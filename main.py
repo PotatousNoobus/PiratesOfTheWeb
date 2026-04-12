@@ -105,10 +105,10 @@ class MyBot(commands.Bot):
                     "You've just invited the ultimate high-roller to your server. "
                     "What happens in this chat stays in this chat... unless it's a winning book/game recommendation.\n\n"
                     "**How to play your cards right:**\n"
-                    "✨ **Use** `/ask` **for your burning questions.**\n"
-                    "📖 **Use** `/review` **or** `/image` **to vet your next play.**\n"
-                    "🌟 **Use** `/recommend` **to let me roll the dice for you.**\n\n"
-                    "📖 **Use** `/ebook` **or** `/game_torrent` ** or ** `/movie` ** or ** `/stream` ** to crack your way to entertainment.**\n"
+                    "✨ **Use** `/chat` **for your burning questions.**\n"
+                    "📖 **Use** `/book_review` **or** `/detect` **to vet your next play.**\n"
+                    "🌟 **Use** `/book_recommend` **to let me roll the dice for you.**\n\n"
+                    "📖 **Use** `/ebook` **or** `/game_torrent` ** or ** `/movie_torrent` ** or ** `/stream` ** to crack your way to entertainment.**\n"
                     "*Good luck, kid. The house is always watching and beware of the malicious depths of the World Wide Web.*"
                 ),
                 color=discord.Color.red() 
