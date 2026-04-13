@@ -11,6 +11,8 @@ import aiohttp
 import json
 import redis.asyncio as redis
 from dotenv import load_dotenv
+import asyncio
+
 
 
 load_dotenv()
@@ -259,8 +261,6 @@ async def scrape_direct_download(base_url: str, relative_path: str):
 class Scraping(commands.Cog):
     def __init__(self, bot):
         self.bot = bot    
-        #self.bot = bot
-        # Initialize Gemini so the game command can use it!
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
             self.client = genai.Client(api_key=api_key)
@@ -310,6 +310,10 @@ class Scraping(commands.Cog):
         cache_key = f"movie_torrent:{movie_name.strip().lower()}"
         found_movies = []
 
+        search_bar_selector = "input[name='q']"
+        search_button_selector = "input[type='submit']" # 👈 Add your button's selector here
+        #results_selector = "div.browse section.col-center ol#torrents li.list-entry span.list-item.item-name.item-title a"
+
         try:
             cached_data = await cache.get(cache_key)
             if cached_data:
@@ -320,19 +324,28 @@ class Scraping(commands.Cog):
 
         if not found_movies:
             print("🔍 CACHE MISS. Firing up Playwright...")
-            search_page_url = "https://thepiratebay.org/index.html" 
-            search_bar_selector = "input[name='q']"
+            search_page_url = "https://thepiratebay.org/index.html"             
             results_selector = "div.browse section.col-center ol#torrents li.list-entry span.list-item.item-name.item-title a"
             
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-blink-features=AutomationControlled'
+                ]
+            )
                 page = await browser.new_page()
                 
                 try:
                     await page.goto(search_page_url, wait_until="domcontentloaded", timeout=30000)
-                    await page.wait_for_selector(search_bar_selector, timeout=10000)
+                    await page.wait_for_selector(search_bar_selector, timeout=15000)
                     await page.fill(search_bar_selector, movie_name)
-                    await page.keyboard.press("Enter")
+                    await page.wait_for_selector(search_button_selector, state="visible", timeout=10000)
+                    await page.click(search_button_selector)
                     
                     try:
                         await page.wait_for_selector(results_selector, timeout=15000)
@@ -395,44 +408,59 @@ class Scraping(commands.Cog):
 
     @app_commands.command(name="game_torrent", description="Searches the website for a torrent link!")
     async def game_torrent(self, interaction: discord.Interaction, game_name: str):
+
         await interaction.response.defer()
         
-        if not self.client:
-            await interaction.followup.send("❌ AI is not configured. I can't generate options right now.")
-            return
 
         ai_prompt = (
-            f"The user is searching for a video game using the query: '{game_name}'. "
-            f"Give me the 4 most popular or likely specific game titles they might mean. "
-            f"Return ONLY a comma-separated list of the names, absolutely no other text. "
-            f"Example: Resident Evil 4, Resident Evil Village, Resident Evil 2 Remake, Resident Evil 3"
-        )
+             f"The user is searching for a video game using the query: '{game_name}'. "
+             f"Give me the 4 most popular or likely specific game titles they might mean. "
+             f"Return ONLY a comma-separated list of the names, absolutely no other text. "
+             f"Example: Resident Evil 4, Resident Evil Village, Resident Evil 2 Remake, Resident Evil 3"
+         )
         
-        try:
-            response = self.client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=ai_prompt
-            )
+        max_retries = 3
+        game_options = [] 
+        
+        for attempt in range(max_retries):
+            try:
+                response = await interaction.client.ai_client.chat.completions.create(
+                    model="gpt-4o-mini", 
+                    messages=[
+                        {"role": "system", "content": "You output strictly formatted comma-separated data."},
+                        {"role": "user", "content": ai_prompt}
+                    ],
+                    temperature=0.3
+                )
+                
+                raw_text = response.choices[0].message.content.replace('\n', '').strip()
+                game_options = [g.strip() for g in raw_text.split(',') if g.strip()]
+
+                view = SelectionView(game_options)
             
-            raw_text = response.text.replace('\n', '').strip()
-            game_options = [g.strip() for g in raw_text.split(',') if g.strip()]
-            
-            view = SelectionView(game_options)
-            
-            selection_embed = discord.Embed(
-                title="🤖 Game Disambiguation",
-                description=f"I found a few possibilities for **{game_name}**.\nWhich one do you mean?",
-                color=discord.Color.green() 
-            )
+                selection_embed = discord.Embed(
+                 title="🤖 Game Disambiguation",
+                 description=f"I found a few possibilities for **{game_name}**.\nWhich one do you mean?",
+                 color=discord.Color.green() 
+             )
             
             
-            selection_embed.set_footer(text="Select an option below to fetch links.")
+                selection_embed.set_footer(text="Select an option below to fetch links.")
 
             
-            await interaction.followup.send(embed=selection_embed, view=view)
-            
-        except Exception as e:
-            await interaction.followup.send(f"⚠️ The AI encountered an error generating options: {e}")
+                await interaction.followup.send(embed=selection_embed, view=view)
+                
+                break 
+
+            except Exception as e:
+                if "503" in str(e) and attempt < max_retries - 1:
+                    wait_time = 2 ** attempt 
+                    print(f"Grok Server overloaded. Retrying in {wait_time} seconds...")
+                    #import asyncio 
+                    await asyncio.sleep(wait_time)
+                else:
+                    await interaction.followup.send(f"⚠️ Grok is currently unreachable. Please try again later.")
+                    return
 
 
     @app_commands.command(name="ebook", description="One stop destination for all the reading material!")

@@ -9,6 +9,7 @@ import asyncio
 import aiohttp
 import re
 
+
 class BookActionView(discord.ui.View):
     def __init__(self, book_name, cog):
         super().__init__(timeout=180)
@@ -86,13 +87,11 @@ class AIChat(commands.Cog):
                 f"Recommend exactly 5 books based on: '{genre_or_book}'. "
                 "Use this format:\n### [Number]. **Title** by *Author*\n> [One-sentence hook]\n\n"
             )
-            response = await self.client.aio.models.generate_content(
-                model='gemini-2.5-flash', contents=prompt
-            )
+            response = await interaction.client.ai_client.chat.completions.create(model='gpt-4o-mini', messages=[{"role": "system", "content": prompt}],temperature=0.3)
             
             embed = discord.Embed(
                 title=f"🌟 Recommendations: {genre_or_book.title()}",
-                description=response.text[:4096],
+                description=response.choices[0].message.content,
                 color=discord.Color.yellow()
             )
             await interaction.followup.send(embed=embed)
@@ -103,10 +102,11 @@ class AIChat(commands.Cog):
     async def chat(self, interaction: discord.Interaction, question: str):
         await interaction.response.defer()
         try:
-            response = await self.client.aio.models.generate_content(model='gemini-2.5-flash', contents=question)
+            response = await interaction.client.ai_client.chat.completions.create(model='gpt-4o-mini', messages=[{"role": "user", "content": question}],temperature=0.3)
+
             embed = discord.Embed(
                 title="🤖 AI Response",
-                description=response.text[:4096],
+                description=response.choices[0].message.content,
                 color=discord.Color.blue()
             )
             await interaction.followup.send(embed=embed)
@@ -132,7 +132,6 @@ class AIChat(commands.Cog):
             return
 
         try:
-            img_data = await file.read()
             
             vision_prompt = (
                 "Identify the media in this image. "
@@ -140,16 +139,30 @@ class AIChat(commands.Cog):
                 "If it is a MOVIE: Return exactly 'TYPE: MOVIE | IDENTITY: Title (Year)'. "
                 "Follow that with a 3-sentence description of the plot."
             )
-
-            response = await self.client.aio.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=[
-                    vision_prompt,
-                    types.Part.from_bytes(data=img_data, mime_type=file.content_type)
-                ]
+            response = await interaction.client.ai_client.chat.completions.create(
+                model='gpt-4o-mini', 
+                messages=[
+                    {
+                        "role": "user", 
+                        "content": [
+                            {
+                                "type": "text", 
+                                "text": vision_prompt
+                            },
+                            {
+                                "type": "image_url", 
+                                "image_url": {
+                                    "url": file.url # Just pass the Discord attachment URL directly!
+                                }
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.3
             )
+
             
-            full_res = response.text.strip()
+            full_res = response.choices[0].message.content.strip()
             
             if "TYPE: BOOK" in full_res:
                 lines = full_res.split("\n", 1)
