@@ -262,21 +262,8 @@ If you prefer to run the bot on your local machine for testing or development, f
 
 3.  **Install dependencies:**
 
-    Create a `requirements.txt` file with the following content:
-
-    ```txt
-
-    discord.py
-
-    playwright
-
-    google-generativeai
-
-    python-dotenv
-
-    ```
-
-    Then, run the installer:
+    
+    Run the installer:
 
     ```bash
 
@@ -302,9 +289,13 @@ If you prefer to run the bot on your local machine for testing or development, f
 
     ```env
 
-    DISCORD_BOT_TOKEN=YOUR_SECRET_BOT_TOKEN_HERE
+    DISCORD_TOKEN=YOUR_SECRET_BOT_TOKEN_HERE
 
-    GOOGLE_API_KEY=YOUR_GOOGLE_AI_API_KEY_HERE
+    GOOGLE_BOOKS_API_KEY=YOUR_GOOGLE_BOOKS_AI_API_KEY_HERE
+    
+    GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+
+    REDIS_URL=YOUR_REDIS_URL
 
     ```
 
