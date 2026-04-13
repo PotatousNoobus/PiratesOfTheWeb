@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 import aiohttp
 import urllib.parse
-from keep_alive import keep_alive
+#from keep_alive import keep_alive
 
 # Load the environment variables from the .env file
 load_dotenv()
@@ -92,5 +92,5 @@ async def get_game_suggestions(query: str):
 
 if __name__ == "__main__":
     bot = MyBot()
-    keep_alive()
+    #keep_alive()
     bot.run(TOKEN)
