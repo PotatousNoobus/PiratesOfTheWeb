@@ -5,9 +5,11 @@ import os
 from dotenv import load_dotenv
 import aiohttp
 import urllib.parse
-#from keep_alive import keep_alive
+from keep_alive import keep_alive
 
-# Load the environment variables from the .env file
+from openai import AsyncOpenAI
+
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
@@ -20,13 +22,13 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix='!', intents=intents)
 
     async def setup_hook(self):
-        # Load the scraping commands from the cogs folder
+        
         await self.load_extension('cogs.scraper')
         await self.load_extension('cogs.chatbot')
-        # You can load more cogs here later!
+        
         await self.tree.sync()
 
-    # --- NEW: SIN CITY INTRODUCTORY RESPONSE ---
+    
     async def on_guild_join(self, guild):
         """Triggered when the bot joins a new server."""
         
@@ -78,11 +80,9 @@ async def get_game_suggestions(query: str):
                 if response.status == 200:
                     data = await response.json()
                     
-                    if data.get('total', 0) > 0:
-                        # Extract just the game names from the JSON
-                        games = [item['name'] for item in data['items']]
+                    if data.get('total', 0) > 0:                       
+                        games = [item['name'] for item in data['items']]                        
                         
-                        # Remove duplicates while keeping the order, then return the top 5
                         unique_games = list(dict.fromkeys(games))
                         return unique_games[:5]
     except Exception as e:
@@ -90,7 +90,11 @@ async def get_game_suggestions(query: str):
         
     return []
 
+bot = MyBot()
+bot.ai_client = AsyncOpenAI(
+    base_url="https://models.inference.ai.azure.com",
+    api_key=os.getenv("GITHUB_TOKEN")
+)
+
 if __name__ == "__main__":
-    bot = MyBot()
-    #keep_alive()
     bot.run(TOKEN)
